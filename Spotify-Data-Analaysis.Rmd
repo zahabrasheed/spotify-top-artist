@@ -1,0 +1,200 @@
+---
+title: "Spotify Data Analysis"
+author: "Zahabiyah Rasheed"
+date: "2024-03-19"
+output:
+  cleanrmd::html_document_clean:
+    theme: kacit
+    toc: true
+    toc_float: true
+---
+# Installing packages and gaining access to API
+```{r install packages}
+library(dplyr)
+library(spotifyr)
+library(tidyverse)
+library(plotly)
+```
+
+
+```{r access spotify api}
+Sys.setenv(SPOTIFY_CLIENT_ID = 'aa05c6e7888b4fec9c158440ded92a13')
+Sys.setenv(SPOTIFY_CLIENT_SECRET = 'ef65a567f2d84d00a574ff22f4007029')
+
+access_token <- get_spotify_access_token()
+```
+# Introduction
+In researching the most streamed artists on Spotify, I weighed a few options. The dilemma was whether to narrow down my focus to American users’ top choices or to consider a broader, global perspective. Given the universal nature of music, I settled on a global viewpoint. Spotify has disclosed that for 2023, the top five global artists are Drake, The Weeknd, Taylor Swift, Bad Bunny, and Peso Pluma.
+
+source:https://newsroom.spotify.com/2023-11-29/top-songs-artists-podcasts-albums-trends-2023/
+
+```{r}
+drake <- get_artist_audio_features('Drake')
+weeknd <- get_artist_audio_features('The Weeknd')
+tswift <- get_artist_audio_features('Taylor Swift')
+bbunny <- get_artist_audio_features('Bad Bunny')
+peso <-  get_artist_audio_features('Peso Pluma')
+
+```
+Now that I've zeroed in on the music from these top-charting Spotify artists, my next step is to examine some specific audio features—namely valence, danceability, and the musical keys of their tracks. I aim to uncover if there's a shared quality in their music that might explain their sky-high popularity on the platform.
+
+# Valence (interactive)
+I'll start with valence. Valence quantifies the mood a track conveys. If a song has a high valence, it's likely to feel more positive, giving off vibes of joy, brightness, or euphoria. On the flip side, a song with low valence tends to feel more negative, possibly reflecting sadness, melancholy, or angst. This metric, part of Spotify's API toolkit, will provide a window into the emotional undertones of these artists' songs.
+```{r valence}
+drake$source <- 'drake'
+tswift$source <- 'tswift'
+bbunny$source <- 'bbunny'
+weeknd$source <- 'weeknd'
+peso$source <- 'peso'
+
+drake_selected <- select(drake, source, artist_name, valence, track_name, energy)
+tswift_selected <- select(tswift, source, artist_name, valence, track_name, energy)
+bbunny_selected <- select(bbunny, source, artist_name, valence, track_name, energy)
+weeknd_selected <- select(weeknd, source, artist_name, valence, track_name, energy)
+peso_selected <- select(peso, source, artist_name, valence, track_name, energy)
+
+
+valence_artists <- bind_rows(drake_selected, tswift_selected, bbunny_selected,weeknd_selected, peso_selected)
+```
+
+```{r plot }
+custom_colors <- c("Bad Bunny" = "#1F77B4", "Taylor Swift" = "#341948", "Drake" = "#478C5C", "Peso Pluma" = "lightpink","The Weeknd" = "orange")
+valence_artists$tooltip_text <- paste(valence_artists$artist_name, "- Valence:", valence_artists$valence)
+
+g <- ggplot(valence_artists, aes(x = valence, y = energy, text = tooltip_text, color = artist_name)) +
+  geom_point(alpha = 0.9) +
+  labs(
+    title = "Mood of Top Spotify Artists Music",
+    x = "Valence",
+    y = "Energy"
+  ) +
+  theme_minimal() +
+  geom_vline(xintercept = .5, color = 'darkblue') +
+  geom_hline(yintercept = .5, color = 'darkblue') +
+  scale_x_continuous(expand = c(0, 0), limits = c(0, 1)) +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 1)) +
+  annotate('text', x = 0.1, y = 0.95, label = "Intense") +
+  annotate('text', x = 0.875, y = 0.95, label = "Happy") +
+  annotate('text', x = 0.875, y = 0.05, label = "Peaceful") +
+  annotate('text', x = 0.1, y = 0.05, label = "Sad")+
+  scale_color_manual(values = custom_colors)  # Manually assign colors to artists
+
+
+# Make the ggplot object interactive using ggplotly
+interactive_happiness <- ggplotly(g, tooltip = "text")  
+
+# Print the interactive plot
+interactive_happiness
+
+```
+# Mood Analysis
+The graph showcases the emotional landscape of songs by top Spotify artists—Drake, Taylor Swift, The Weeknd, Peso Plumo and Bad Bunny. I aimed to determine if a shared mood in their music might be a key factor in its popularity. Examining the intersection of energy and valence on the graph, there's a noticeable trend towards songs with high energy and high valence, which are indicative of a happy mood. Conversely, songs with high energy but low valence tend to create an intense atmosphere. Through individual analysis of each artist's body of work, specific patterns emerge: Bad Bunny rarely dips into lower energy levels, while Taylor Swift exhibits the greatest mood variance, with a tilt towards the happy and intense. Drake shows less variation than Swift, yet his music occasionally ventures into sadder mood spaces. Peso Pluma music is concentrated in Happy mood ( high valnece, high energy). The Weeknd's music follows a similar trend to that of Taylor Swift however, with less variability.
+
+# Music Key
+```{r}
+
+drake_key <- select(drake, source, artist_name, key_mode, track_name)
+tswift_key <- select(tswift, source, artist_name, key_mode, track_name)
+bbunny_key <- select(bbunny, source, artist_name, key_mode, track_name)
+weeknd_key <- select(weeknd, source, artist_name, key_mode, track_name)
+peso_key <- select(peso, source, artist_name, key_mode, track_name)
+
+
+key_artists <- bind_rows(drake_key, tswift_key, bbunny_key,weeknd_key, peso_key)
+```
+
+```{r}
+key_plot <- ggplot(key_artists, aes(x = key_mode)) +
+  geom_bar(fill = '#3A6A59') + 
+  labs(x = "Key", y = "Count", title = "Key Using in Popular Music") +
+  
+  scale_fill_brewer(palette = "Set2", name = "Key Mode") +
+  theme_light() +
+ theme(
+    text = element_text(size = 14),
+    plot.title = element_text(face = "bold"),
+    plot.subtitle = element_text(face = "italic"),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(size = 12),
+    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotate x-axis labels
+    axis.title.x = element_text(vjust = -0.2),
+    axis.title.y = element_text(vjust = 1.5)
+  )
+key_plot
+```
+# Key Analysis
+
+In music production, selecting an appropriate key is crucial. I was curious to investigate whether certain keys are more appealing to listeners or if artists exhibit a preference for particular keys. The provided graph reveals distinct preferences by three leading artists. Both C major and G major are especially favored, each comprising over 100 songs. Moreover, D major and C# major also feature prominently in their compositions. The prevalence of these keys among top artists who span diverse musical genres suggests a potential relationship between popular music and the selection of these keys.
+
+# Danceability
+In my eyes a lot of popular music recently is popularized when it is easy to dance to and because there is a dance created for it. This is especially seen with the rise of TikTok dance culture. 
+
+```{r}
+drake_dance <- select(drake, source, artist_name, danceability, track_name)
+tswift_dance <- select(tswift, source, artist_name, danceability, track_name)
+bbunny_dance <- select(bbunny, source, artist_name, danceability, track_name)
+weeknd_dance <- select(weeknd, source, artist_name, danceability, track_name)
+peso_dance <- select(peso, source, artist_name, danceability, track_name)
+
+dance_artists <- bind_rows(drake_dance, tswift_dance, bbunny_dance, weeknd_dance,peso_dance)
+```
+
+```{r}
+dance_plot <- ggplot(dance_artists, aes(x = danceability)) +
+  geom_histogram(fill = '#B9C8BC', binwidth = 0.05) +  # Added a binwidth for proper histogram representation
+  labs(x = "Danceability", y = "Count", title = "Danceability of Top Artist Music") +
+  scale_fill_brewer(palette = "Set2", name = "Danceability") +
+  theme_light() +
+  theme(
+    text = element_text(size = 14),
+    plot.title = element_text(face = "bold"),
+    plot.subtitle = element_text(face = "italic"),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(size = 12),
+    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotate x-axis labels
+    axis.title.x = element_text(vjust = -0.2),
+    axis.title.y = element_text(vjust = 1.5)
+  )
+
+# Convert the ggplot object to a Plotly object
+interactive_dance_plot <- ggplotly(dance_plot)
+
+# Print the interactive plot to the console
+interactive_dance_plot
+```
+# Danceability Analysis
+Danceability is a measurement that captures how well a track suits dancing, taking into account elements like tempo, rhythm consistency, beat strength, and pattern predictability. A score on the danceability scale ranges from 0.0, signaling poor dance potential, to 1.0, indicating high danceability. An examination of the danceability of chart-topping artists' music indicates that a substantial portion of these tracks are moderately dance-friendly, with most falling within the 0.5 to 0.75 range. This suggests that while these popular songs may not be the ultimate in danceability, they are still quite suitable for dancing. The takeaway here is that a song's potential for popularity benefits from a degree of danceability, but it does not have to reach the peak of the scale to be embraced by a wide audience.
+
+# Tempo
+```{r}
+drake_s <- select(drake, source, artist_name, tempo, track_name)
+tswift_s <- select(tswift, source, artist_name, tempo, track_name)
+bbunny_s <- select(bbunny, source, artist_name, tempo, track_name)
+weeknd_s <- select(weeknd, source, artist_name, tempo, track_name)
+peso_s <- select(peso, source, artist_name, tempo, track_name)
+
+
+speach_artists <- bind_rows(drake_s, tswift_s, bbunny_s,weeknd_s, peso_s)
+
+```
+
+
+```{r}
+  interactive_plot_tempo <- plot_ly(data = speach_artists, x = ~tempo, type = 'histogram', marker = list(color = '#D6C18A')) %>%
+    layout(
+      title = "Tempo of Top Artist Music",
+      xaxis = list(title = "Tempo"),
+      yaxis = list(title = "Count"),
+      paper_bgcolor='rgba(0,0,0,0)',
+      plot_bgcolor='rgba(0,0,0,0)'
+    )
+
+  # Render the interactive plot
+  interactive_plot_tempo
+
+```
+# Tempo Analysis
+The tempo of a song, which refers to its speed, is measured in beats per minute (BPM). This comes from how long the typical beat lasts in a piece of music. Looking at the chart, it's clear that many songs from the most popular artists have tempos ranging from 92 to 122 BPM. While there's a wide variety of tempos outside this range, this cluster indicates a preference among these artists for this tempo bracket. Therefore, we can conclude that a notable number of successful artists frequently operate within this tempo range in their music.
+
+
+
